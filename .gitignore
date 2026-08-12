@@ -1,0 +1,13 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+
+# Generated PDFs
+output/
+
+# Local data
+data/
+
+# Temp files
+*.tmp
