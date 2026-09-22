@@ -50,19 +50,19 @@ set_text_value <- function(item){
 
 
 #' Set one field to a specific value
+#' 
+#' Use this function in laaply or a map to set the values of the field_list in the template pdf.
+#' Handles buttons which have factor values, and text entries as well. 
 #'
 #' @param item is the field from a field list
 #' @param value is the value to set for the field.  If the 
 #'
-#' @returns
-#' @export
-#'
-#' @examples
+#' @returns the item with set to "value
 set_specific <- function(item, value){
   
   button_set <- function() {
     categories <- levels(item$value)
-    if(!any(value  %in% categories)) stop("value not found in levels of item")
+    if(!any(value  %in% categories)) stop("value: ", value,  " not found in factor levels of item: ", item$name)
     item$value <- factor(value, levels = categories)
     return(item)
   }
@@ -78,3 +78,36 @@ set_specific <- function(item, value){
   
   return(item)
 }
+
+
+# Functions to translate from EpiTrax to CRF fields ---------------------------------------------------------------
+
+#' Format names
+#'
+#' @param last,first,middle are character vectors fo names to formatted and concatenated.  The function
+#' is vectorised so each vector is sized tot he one with the greatest length
+#'
+#' @returns a character vector of "last, first middle".
+format_name <- function(last, first, middle = ""){
+  paste0(last, ", ", first, " ", middle) |> 
+    str_to_title()
+}
+
+
+#' Split a Date into Components
+#' 
+#' When given a Date or POSIX date-time object splits into month, day, and year components
+#'
+#' @param date a Date or posix date_time_object
+#' @returns a named list of character vectors consisting of month, day, and year components
+split_date <- function(date){
+  type <- class(date)
+  if(! any(type  %in% c("Date", "POSIXct", "POSIXlt"))) stop("The 'date' argument must be a Date or POSIXct object")
+  lt <- as.POSIXlt(date)
+  return( list(month = lt$mon + 1, 
+               day   = lt$mday, 
+               year  = lt$year + 1900) 
+  ) |> 
+    map(as.integer)
+}
+
