@@ -80,25 +80,30 @@ map_to_fields <- function(fields, record){
     stopifnot(length(dates) >=  date_number)
     # create character vector to select date field components based on number
     sel <- paste0(c("Month", "Day", "Year"), date_number)
-    #date <- dates[date_number]
-    ret_fields[sel] <<- item   # side effect here
-    return(sel)   # return the date field names for use when slecting fields set at end og function
+    date <- dates[[date_number]]
+    sq <- seq_along(date)
+    # set the item value for each date component
+    ret_fields[sel] <<- map2(ret_fields[sel], sq,  \(component, number) set_specific(component, date[[number]]))
+    return(sel)   # return the date field names for use when selecting fields set at end of function
   }
-  
-  # set the date fields to the corrosponging record value
-  date_field_names <- map(dates, seq_along(dates),  set_date_fields) |> 
+
+    # set the date fields to the corrosponging record value
+  date_field_names <- map2(dates, seq_along(dates),  set_date_fields) |> 
     unlist()
+  
   
   # a named list of functions or values to set. This maps the record 
   # The name is the filed name as set in the template fill-able pdf file.
   # The source of the value comes from record.
   set_fields <- list(
+    "Case Status"     = record$lhd_case_status,
     "Patients Name"   = format_name(record$last_name, record$first_name, record$middle_name),
     "Address"         = record$street,
     "City"            = record$city,
     "County"          = record$county,
     "Zip"             = record$zip,
     "Phone_1"         = record$phone_number,
+    "Region"          = "PHR 2/3",
     "ParentGuardian"  = str_to_title(record$parent_guardian),
     "Physician"       =   format_name(record$clinician_last_name, record$first_name),
     "Phone_2"         = record$clinician_phone,
@@ -129,12 +134,18 @@ map_to_fields <- function(fields, record){
   
   # set the fields in ret_fields
   iwalk(set_fields, \(x,name)  ret_fields[[name]] <<- set_specific(ret_fields[[name]], x))
-  
   field_set_names <- c(date_field_names, names(set_fields))
   ret_fields[field_set_names]
-  
 }
 
+record <- pertussis[1, ]
+#undebug(map_to_fields)
+#undebug(set_specific)
+tmp <- map_to_fields(fields = fields, record = record)
+
+out_file <- file.path("data/processed", glue::glue("{record$record_number}_{record$last_name}.pdf"))
+set_fields(input_filepath = file, output_filepath = out_file, fields = tmp)
+out_file
 
 get_field_record <- function(name){
   
@@ -144,15 +155,10 @@ get_field_record <- function(name){
     record = names(record) |> keep(.p = ~ str_detect(.x, term))
   )
 }
-
-get_field_record("report")
-
-debug(map_to_fields)
-tmp <- map_to_fields(fields = fields, record = record)
+get_field_record("status")
+fields_value_set$`Case Status`
 
 
-out_file <- file.path("data/processed", glue::glue("{record$record_number}_{record$last_name}.pdf"))
-set_fields(input_filepath = file, output_filepath = out_file, fields = tmp)
 
 
 

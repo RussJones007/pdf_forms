@@ -63,15 +63,15 @@ set_specific <- function(item, value){
   button_set <- function() {
     categories <- levels(item$value)
     if(!any(value  %in% categories)) stop("value: ", value,  " not found in factor levels of item: ", item$name)
-    item$value <- factor(value, levels = categories)
-    return(item)
+    factor(value, levels = categories)
+    #return(item)
   }
   
   text_set <- function(){
-    item$value <- value
+    as.character(value)
   }
   
-  item <- switch(item$type,
+  item$value <- switch(item$type,
                  "Button" = button_set(),
                  "Text"   = text_set()
   )
@@ -88,9 +88,15 @@ set_specific <- function(item, value){
 #' is vectorised so each vector is sized tot he one with the greatest length
 #'
 #' @returns a character vector of "last, first middle".
-format_name <- function(last, first, middle = ""){
-  paste0(last, ", ", first, " ", middle) |> 
+format_name <- function(last = NA, first = NA , middle = NA){
+  formal_args <- formals(format_name) |> as.list()
+  if(all(map_lgl(formal_args, is.na) ) ) {
+    return("missing")}   else {
+  args <- map(formal_args, .f = \(x) ifelse(is.na(x), "", x))
+  paste0(args$last, ", ", args$first, " ", args$middle) |> 
+    str_trim(side = "both") |> 
     str_to_title()
+  }
 }
 
 
@@ -111,3 +117,82 @@ split_date <- function(date){
     map(as.integer)
 }
 
+
+
+#' Format a phone number
+#' 
+#' Given a string of characters, formats the phone number to fit in the phone fields.
+#' Extensions that start with 'x' or 'ext' are handled
+#'
+#' @param x 
+#'
+#' @returns a formatted phone string
+format_phone <- function(x){
+  
+  if(missing(x) || is.na(x)){
+    return("    none ")
+  }
+    browser()
+    
+  #  x <- trimws(x)
+  #  } else{
+  #   str_pad(string = x, side = "left", width = 10)
+  #  }
+    
+    
+    # Extract a final extension written as x 1234, x1234, ext 1234, or ext. 1234
+    ext <- sub(
+      ".*(?:\\bext\\.?|\\bx)\\s*(\\d+)\\s*$",
+      "\\1",
+      x,
+      ignore.case = TRUE,
+      perl = TRUE
+    )
+    
+    has_ext <- grepl(
+      "(?:\\bext\\.?|\\bx)\\s*\\d+\\s*$",
+      x,
+      ignore.case = TRUE,
+      perl = TRUE
+    )
+    
+    # Remove the extension, if present
+    phone <- sub(
+      "\\s*(?:\\bext\\.?|\\bx)\\s*\\d+\\s*$",
+      "",
+      x,
+      ignore.case = TRUE,
+      perl = TRUE
+    )
+    
+    # Leave only digits in the phone number portion
+    digits <- gsub("\\D", "", phone)
+    
+    out <- rep(NA_character_, length(x))
+    
+    is_10 <- nchar(digits) == 10L
+    is_7  <- nchar(digits) == 7L
+    
+    out[is_10] <- sub(
+      "^(\\d{3})(\\d{3})(\\d{4})$",
+      "\\1  \\2-\\3",
+      digits[is_10],
+      perl = TRUE
+    )
+    
+    out[is_7] <- sub(
+      "^(\\d{3})(\\d{4})$",
+      "     \\1-\\2",
+      digits[is_7],
+      perl = TRUE
+    )
+    
+    # Append normalized extension only to valid phone values
+    out[has_ext & !is.na(out)] <- paste0(
+      out[has_ext & !is.na(out)],
+      " ext ",
+      ext[has_ext & !is.na(out)]
+    )
+    
+    out    
+}
