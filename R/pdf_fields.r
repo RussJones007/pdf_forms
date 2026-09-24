@@ -91,7 +91,11 @@ map_to_fields <- function(fields, record){
   date_field_names <- map2(dates, seq_along(dates),  set_date_fields) |> 
     unlist()
   
-  
+   quick_race <- function(race_name){
+     get_race_setting(ret_fields[[race_name]], record$race)
+   }
+    
+   
   # a named list of functions or values to set. This maps the record 
   # The name is the filed name as set in the template fill-able pdf file.
   # The source of the value comes from record.
@@ -102,63 +106,73 @@ map_to_fields <- function(fields, record){
     "City"            = record$city,
     "County"          = record$county,
     "Zip"             = record$zip,
-    "Phone_1"         = record$phone_number,
+    "Phone_1"         = format_phone(record$phone_number),
     "Region"          = "PHR 2/3",
     "ParentGuardian"  = str_to_title(record$parent_guardian),
-    "Physician"       =   format_name(record$clinician_last_name, record$first_name),
-    "Phone_2"         = record$clinician_phone,
+    # Physcian information
+    "Physician"       = format_name(record$clinician_last_name, record$clinician_first_name),
+    "Phone_2"         = format_phone(record$clinician_phone),
     "Address 1"       = record$facility_street,
     "Address 2"       = glue::glue("{record$facility_address_city}, {record$facility_state} {record$facility_address_zip}"),
+    # Reporter information
     "Reported by"     = format_name(record$reporter_last_name, record$reporter_first_name),
     "Agency"          = record$reporting_agency,
-    "Phone_3"         = record$reporter_phone_phone_number,
-    # Report date 
-    #"Month1"         = dates$report$month,
-    #"Day1"           = dates$report$day,
-    #"Year1"          = dates$report$year,
+    "Phone_3"         = format_phone(record$reporter_phone_phone_number),
+    # Investigator informatiom
     "Investigated by" = record$investigator,
     "Agency_2"          = "Tarrant County Public Health",
-    "Phone_4"         = "8173215350",
-    # Investigation start date
-    #"Month2"          = dates$invest_start$month,
-    
+    "Phone_4"         = format_phone("8173215350"),
     # Demographics
-    "SEX"   = record$birth_sex,
-    "AGE"   = record$age_at_event_in_years,
-    "Place of Birth" = recode_values(record$country_of_birth,
+    "SEX"                                           = record$birth_sex,
+    "AGE"                                           = record$age_at_event_in_years,
+    "Place of Birth"                                = recode_values(record$country_of_birth,
                                      "United States" ~ "USA",
                                      NA              ~ "Unknown",
-                                     default        = "Other")#,
-    #"If female is patient currently pregnant" = ifelse(is.na(record$pregnant), "Unknown", record$pregnant) 
+                                     default        = "Other"),
+    "If female is patient currently pregnant"       = get_ynu(ret_fields$`If female is patient currently pregnant`, record$pregnant),
+    "White"                                         = quick_race("White"),
+    "Black"                                         = quick_race("Black"),
+    "Asian"                                         = quick_race("Asian"),
+    "Native Hawaiian or Other Pac Islander"         = quick_race("Native Hawaiian or Other Pac Islander"),
+    "Am Indian or Alaska Native"                    =  quick_race("Am Indian or Alaska Native")#,
+    #quick_race("Unknown")
     )
-  
+  browser()
   # set the fields in ret_fields
   iwalk(set_fields, \(x,name)  ret_fields[[name]] <<- set_specific(ret_fields[[name]], x))
   field_set_names <- c(date_field_names, names(set_fields))
   ret_fields[field_set_names]
 }
 
-record <- pertussis[1, ]
-#undebug(map_to_fields)
-#undebug(set_specific)
+record <- pertussis[2, ]
+glimpse(record)
 tmp <- map_to_fields(fields = fields, record = record)
 
 out_file <- file.path("data/processed", glue::glue("{record$record_number}_{record$last_name}.pdf"))
 set_fields(input_filepath = file, output_filepath = out_file, fields = tmp)
 out_file
 
+
+
 get_field_record <- function(name){
-  
   term = regex(name, ignore_case = TRUE)  
   list(
     field  = names(fields) |> keep(.p = ~ str_detect(.x, term)),
     record = names(record) |> keep(.p = ~ str_detect(.x, term))
   )
 }
-get_field_record("status")
-fields_value_set$`Case Status`
+
+map_chr(buttons, ~.x$name) |> sort()
+
+
+
+library(tarr)
+et <- tarr::epitrax_import()
+et$patient_race |> unique()
+str_remove("Other_2", pattern = "_\\d")
 
 
 
 
 
+et$patient_race |> unique()
