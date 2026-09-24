@@ -80,6 +80,43 @@ set_specific <- function(item, value){
 }
 
 
+#  Given the field name and value, translates the value to the factor level that should be used
+get_ynu <- function(item, value){
+  value <- ifelse(is.na(value), "Unknown", value)
+  stopifnot(value %in% c("Yes", "No", "Unknown"))
+  levels(item$value)[str_detect(levels(item$value), value)]
+}
+  
+  
+#' Race seting
+#' 
+#' Given a race(s) entry from EpiTrax, returns whether  the item state should be on or off
+#'
+#' @param item a field item from the pdf form
+#'
+#' @returns  "On" or "Off
+get_race_setting <- function(item, value){
+  stopifnot(item$type == "Button")
+  ret <- "Off"
+  if(is.na(item$name)){
+    term <- "unknown"
+  } else {
+    term <- str_to_lower(item$name)
+  }
+  search_term <- switch(
+    term,
+    "black" = ,
+    "white" = ,
+    "asian" = item$name,  
+    "native hawaiian or other pac islander" = "Native Hawaiian or Other Pacific Islander",
+    "am indian or alaska native" = "American Indian or Alaska Native",
+    "unknown" = "Unknown"
+  )
+  if( any(str_detect(value, search_term))) ret <- "On"
+  ret
+}
+
+
 # Functions to translate from EpiTrax to CRF fields ---------------------------------------------------------------
 
 #' Format names
@@ -89,10 +126,10 @@ set_specific <- function(item, value){
 #'
 #' @returns a character vector of "last, first middle".
 format_name <- function(last = NA, first = NA , middle = NA){
-  formal_args <- formals(format_name) |> as.list()
-  if(all(map_lgl(formal_args, is.na) ) ) {
-    return("missing")}   else {
-  args <- map(formal_args, .f = \(x) ifelse(is.na(x), "", x))
+  args <- list("last" = last, "first" = first, "middle" = middle)
+  if(all(map_lgl(args, \(x) is.na(x)))) {
+    return("missing")} else {
+  args <- map(args, .f = \(x) ifelse(is.na(x), "", x))
   paste0(args$last, ", ", args$first, " ", args$middle) |> 
     str_trim(side = "both") |> 
     str_to_title()
@@ -100,29 +137,11 @@ format_name <- function(last = NA, first = NA , middle = NA){
 }
 
 
-#' Split a Date into Components
-#' 
-#' When given a Date or POSIX date-time object splits into month, day, and year components
-#'
-#' @param date a Date or posix date_time_object
-#' @returns a named list of character vectors consisting of month, day, and year components
-split_date <- function(date){
-  type <- class(date)
-  if(! any(type  %in% c("Date", "POSIXct", "POSIXlt"))) stop("The 'date' argument must be a Date or POSIXct object")
-  lt <- as.POSIXlt(date)
-  return( list(month = lt$mon + 1, 
-               day   = lt$mday, 
-               year  = lt$year + 1900) 
-  ) |> 
-    map(as.integer)
-}
-
-
-
 #' Format a phone number
 #' 
 #' Given a string of characters, formats the phone number to fit in the phone fields.
-#' Extensions that start with 'x' or 'ext' are handled
+#' Extensions that start with 'x' or 'ext' are handled.
+#' Exapnded to larger strings so the display on the pdf form looks correct.
 #'
 #' @param x 
 #'
@@ -132,13 +151,6 @@ format_phone <- function(x){
   if(missing(x) || is.na(x)){
     return("    none ")
   }
-    browser()
-    
-  #  x <- trimws(x)
-  #  } else{
-  #   str_pad(string = x, side = "left", width = 10)
-  #  }
-    
     
     # Extract a final extension written as x 1234, x1234, ext 1234, or ext. 1234
     ext <- sub(
@@ -196,3 +208,23 @@ format_phone <- function(x){
     
     out    
 }
+
+
+#' Split a Date into Components
+#' 
+#' When given a Date or POSIX date-time object splits into month, day, and year components
+#'
+#' @param date a Date or posix date_time_object
+#' @returns a named list of character vectors consisting of month, day, and year components
+split_date <- function(date){
+  type <- class(date)
+  if(! any(type  %in% c("Date", "POSIXct", "POSIXlt"))) stop("The 'date' argument must be a Date or POSIXct object")
+  lt <- as.POSIXlt(date)
+  return( list(month = lt$mon + 1, 
+               day   = lt$mday, 
+               year  = lt$year + 1900) 
+  ) |> 
+    map(as.integer)
+}
+
+
